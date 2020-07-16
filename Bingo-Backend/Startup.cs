@@ -45,16 +45,20 @@ namespace Bingo_Backend
 
             app.UseHttpsRedirection();
 
+
             app.UseRouting();
 
             app.UseAuthorization();
 
 
             app.UseCors("CorsPolicy");
-            app.UseSignalR(x => x.MapHub<SignalRHub>("/SignalHubs"));
+            
+            /*Metodo Obsoleta*/
+            //app.UseSignalR(x => x.MapHub<SignalRHub>("/SignalHubs"));
 
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
+                endpoints.MapHub<SignalRHub>("/SignalHubs"); //Nuevo metodo SignalR
             });
         }
     }
