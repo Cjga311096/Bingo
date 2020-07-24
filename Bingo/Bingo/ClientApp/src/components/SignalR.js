@@ -26,13 +26,12 @@ var SignalRPage = /** @class */ (function (_super) {
     function SignalRPage() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
         _this.state = {
-            name: '',
             message: '',
-            list: []
+            list: [],
+            state: signalr_1.HubConnectionState.Disconnected
         };
         _this.sendMessage = function () {
-            var _a = _this.state, name = _a.name, message = _a.message;
-            console.log(name, message);
+            var message = _this.state.message;
             connection.send("Send", message);
         };
         _this.handleChange = function (name) { return function (event) {
@@ -43,32 +42,38 @@ var SignalRPage = /** @class */ (function (_super) {
     }
     SignalRPage.prototype.componentDidMount = function () {
         var _this = this;
-        var username;
-        do {
-            username = prompt("Nombre: ");
-        } while (username === null || username === "");
+        var client = JSON.parse(localStorage.getItem('client') || "");
+        if (client.username === "") {
+            do {
+                client.username = prompt("Nombre: ") || "";
+                localStorage.setItem("client", JSON.stringify(client));
+            } while (client.username === "");
+        }
         connection.start()
             .then(function () {
             console.log('connection started');
-            connection.send("Connect", username);
+            _this.setState({ state: connection.state });
+            connection.send("Connect", client.username);
         })
             .catch(function (error) {
             console.error(error.message);
         });
-        connection.on('broadcastMessage', function (name, message) {
+        connection.on('broadcastMessage', function (username, message) {
             var list = _this.state.list;
-            var updatedList = list.concat([{ name: name, message: message, id: Date.now().toString() }]);
+            var updatedList = list.concat([{ username: username, message: message, id: Date.now().toString() }]);
             _this.setState({ list: updatedList });
+        });
+        connection.onclose(function (error) {
+            console.log(error);
         });
     };
     SignalRPage.prototype.render = function () {
-        var _a = this.state, name = _a.name, message = _a.message;
+        var message = this.state.message;
         return (React.createElement(React.Fragment, null,
-            React.createElement("input", { type: "text", value: name, onChange: this.handleChange('name') }),
             React.createElement("input", { type: "text", value: message, onChange: this.handleChange('message') }),
             React.createElement("button", { type: "button", id: "btn", onClick: this.sendMessage }, "Enviar"),
             React.createElement("div", { id: "" },
-                React.createElement("ul", null, this.state.list.map(function (item) { return (React.createElement("li", { key: item.id }, item.name + ": " + item.message)); })))));
+                React.createElement("ul", null, this.state.list.map(function (item) { return (React.createElement("li", { key: item.id }, item.username + ": " + item.message)); })))));
     };
     return SignalRPage;
 }(React.PureComponent));

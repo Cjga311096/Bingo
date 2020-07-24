@@ -12,24 +12,24 @@ namespace Bingo_Backend.Hubs
         public static List<Client> ConnectedUsers { get; set; } = new List<Client>();
 
         public void Send(string mensaje) {
-            const username: string = 
-            Clients.All.SendAsync("broadcastMessage", ConnectedUsers.Find(client => client.ID == Context.ConnectionId).Username, mensaje);
+            string username = ConnectedUsers.Find(client => client.ID == Context.ConnectionId).Username;
+            Clients.All.SendAsync("broadcastMessage", username, mensaje);
         }
 
         [HubMethodName("Connect")]
 
-        public void Connect(string username) => ConnectedUsers.Add(new Client() { Username = username, ID = Context.ConnectionId });
+        public void Connect(string username) {
+            bool exist = ConnectedUsers.Exists(item => item.ID == Context.ConnectionId);
+            if (!exist) ConnectedUsers.Add(new Client() { Username = username, ID = Context.ConnectionId });
+            if (exist) ConnectedUsers.Find(item => item.ID == Context.ConnectionId).Username = username; 
+        }
 
         public override Task OnConnectedAsync() {
-            if (!ConnectedUsers.Any(p => p.Username.Equals(Context.User.Identity.Name))) {
-                if (!string.Equals(Context.User.Identity.Name, string.Empty)) {
-                    Client cliente = new Client() {
-                        Username = Context.User.Identity.Name,
-                        ID = Context.ConnectionId
-                    };
-                    ConnectedUsers.Add(cliente);
-                }
-            }
+            Client cliente = new Client() {
+                Username = "No definido",
+                ID = Context.ConnectionId
+            };
+            ConnectedUsers.Add(cliente);
             return base.OnConnectedAsync();
         }
 

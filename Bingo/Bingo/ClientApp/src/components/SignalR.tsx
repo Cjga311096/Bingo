@@ -2,7 +2,7 @@
 import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
 import { ApplicationState } from '../store';
-import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
+import { HubConnectionBuilder, LogLevel, HubConnectionState } from '@microsoft/signalr';
 
 
 type CounterProps = RouteComponentProps<{}>;
@@ -14,61 +14,72 @@ const connection = new HubConnectionBuilder()
     .build();
 
 type State = {
-    name: string,
     message: string,
-    list: Messages[]
+    list: Messages[],
+    state: HubConnectionState
 }
 
 type Messages = {
-    name: string,
+    username: string,
     message: string,
     id: string
 }
 
+type Client = {
+    username: string
+}
+
 class SignalRPage extends React.PureComponent<CounterProps> {
     public state: State = {
-        name: '',
         message: '',
-        list: []
+        list: [],
+        state: HubConnectionState.Disconnected
     }
 
     componentDidMount() {
-        
-        var username: any;
-        do {
-            username = prompt("Nombre: ");
-        } while (username === null || username === "");
+        var client: Client = JSON.parse(localStorage.getItem('client') || "");
+        if (client.username === "") {
+
+            do {
+                client.username = prompt("Nombre: ") || "";
+
+                localStorage.setItem("client", JSON.stringify(client));
+            } while (client.username === "");
+        }
         
         connection.start()
-            .then(function () {
+            .then(() => {
                 console.log('connection started');
-                connection.send("Connect", username);
+                this.setState({ state: connection.state });
+                connection.send("Connect", client.username);
             })
             .catch(error => {
                 console.error(error.message);
             });
         
-        connection.on('broadcastMessage', (name: string, message: string) => {
+        connection.on('broadcastMessage', (username: string, message: string) => {
             const { list } = this.state;
-            const updatedList: Messages[] = list.concat([{ name, message, id: Date.now().toString() }]);
+            const updatedList: Messages[] = list.concat([{ username, message, id: Date.now().toString() }]);
             this.setState({ list: updatedList });
+        });
+
+        connection.onclose(error => {
+            console.log(error);
         });
     }
 
 
     sendMessage = () => {
-        const { name, message } = this.state;
-        console.log(name, message);
+        const { message } = this.state;
         connection.send("Send", message);
     }
 
     handleChange = (name: string) => (event: any) => this.setState({ [name]: event.target.value });
 
     public render() {
-        const { name, message } = this.state;
+        const { message } = this.state;
         return (
             <React.Fragment>
-                <input type="text" value={name} onChange={this.handleChange('name')} />
                 <input type="text" value={message} onChange={this.handleChange('message')} />
 
                 <button type="button" id="btn" onClick={this.sendMessage}>Enviar</button>
@@ -76,7 +87,7 @@ class SignalRPage extends React.PureComponent<CounterProps> {
                 <div id="">
                     <ul>
                         {this.state.list.map((item: any) => (
-                            <li key={item.id}>{`${item.name}: ${item.message}`}</li>
+                            <li key={item.id}>{`${item.username}: ${item.message}`}</li>
                         ))}
                     </ul>
                 </div>
